@@ -1,0 +1,1531 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>DailyPocket · 日迹</title>
+
+<!-- ====== PWA Meta 标签 ====== -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="日迹">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="application-name" content="日迹">
+<meta name="theme-color" content="#B5D8C4">
+<meta name="description" content="日常计划 + 花销记录 + 电子日记本">
+
+<!-- ====== PWA 图标 ====== -->
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/svg+xml" href="icon-192.svg">
+<link rel="apple-touch-icon" href="icon-192.svg">
+<link rel="apple-touch-icon" sizes="192x192" href="icon-192.svg">
+<link rel="apple-touch-icon" sizes="512x512" href="icon-512.svg">
+
+<!-- ====== iOS 启动页背景 ====== -->
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="apple-touch-startup-image" href="icon-512.svg">
+
+<style>
+  /* ===== CSS 变量 & 基础重置 ===== */
+  :root {
+    --mint:    #B5D8C4;
+    --cream:   #FDF6E3;
+    --pink:    #F2D9D9;
+    --light:   #E8F4F0;
+    --mint-d:  #8EC5AA;
+    --text:    #4a4a4a;
+    --text-m:  #888;
+    --shadow:  0 2px 12px rgba(0,0,0,0.08);
+    --radius:  16px;
+    --r-sm:    10px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+    background: #f0f7f4;
+    display: flex;
+    justify-content: center;
+    min-height: 100vh;
+    color: var(--text);
+  }
+
+  /* ===== 应用外壳 ===== */
+  #app {
+    width: 100%;
+    max-width: 480px;
+    min-height: 100vh;
+    background: var(--cream);
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* ===== 页面内容区 ===== */
+  .page { display: none; flex: 1; overflow-y: auto; padding-bottom: 80px; }
+  .page.active { display: block; }
+
+  /* ===== 底部导航 ===== */
+  #nav {
+    position: fixed;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    max-width: 480px;
+    background: #fff;
+    border-top: 1px solid rgba(181,216,196,0.3);
+    display: flex;
+    z-index: 100;
+    box-shadow: 0 -2px 12px rgba(0,0,0,0.06);
+  }
+  .nav-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 10px 0 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+    background: none;
+    gap: 3px;
+  }
+  .nav-item .nav-icon { font-size: 22px; line-height: 1; }
+  .nav-item .nav-label { font-size: 11px; color: var(--text-m); transition: color 0.2s; }
+  .nav-item.active .nav-label { color: var(--mint-d); font-weight: 600; }
+  .nav-item:active { transform: scale(0.92); }
+
+  /* ===== 通用组件 ===== */
+  .card {
+    background: #fff;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 16px;
+    margin: 12px 16px;
+  }
+  .section-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .section-title .count {
+    font-size: 12px;
+    background: var(--pink);
+    color: #c07878;
+    border-radius: 20px;
+    padding: 2px 8px;
+    font-weight: 500;
+  }
+  input[type="text"], input[type="number"], textarea, select {
+    width: 100%;
+    border: 1.5px solid #e8e8e8;
+    border-radius: var(--r-sm);
+    padding: 10px 12px;
+    font-size: 14px;
+    color: var(--text);
+    background: #fafafa;
+    outline: none;
+    transition: border-color 0.2s;
+    font-family: inherit;
+  }
+  input:focus, textarea:focus, select:focus { border-color: var(--mint); background: #fff; }
+  .btn {
+    border: none;
+    border-radius: var(--r-sm);
+    padding: 10px 18px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.18s;
+    font-family: inherit;
+  }
+  .btn:active { transform: scale(0.95); }
+  .btn-primary {
+    background: var(--mint);
+    color: #fff;
+  }
+  .btn-primary:hover { background: var(--mint-d); }
+  .btn-danger {
+    background: #f2d9d9;
+    color: #c07878;
+  }
+  .btn-outline {
+    background: transparent;
+    border: 1.5px solid var(--mint);
+    color: var(--mint-d);
+  }
+  .empty-tip {
+    text-align: center;
+    color: var(--text-m);
+    font-size: 13px;
+    padding: 24px 0;
+  }
+  .empty-tip .e-emoji { font-size: 32px; display: block; margin-bottom: 8px; }
+
+  /* ===== 弹窗 ===== */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.3);
+    z-index: 200;
+    align-items: flex-end;
+    justify-content: center;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal-box {
+    background: #fff;
+    border-radius: 20px 20px 0 0;
+    padding: 24px 20px 36px;
+    width: 100%;
+    max-width: 480px;
+    animation: slideUp 0.25s ease;
+  }
+  @keyframes slideUp {
+    from { transform: translateY(100%); opacity: 0; }
+    to   { transform: translateY(0);    opacity: 1; }
+  }
+  .modal-title {
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 16px;
+    text-align: center;
+    color: var(--text);
+  }
+
+  /* ===== 主页 (HOME) ===== */
+  #page-home .hero {
+    background: linear-gradient(135deg, var(--mint) 0%, #8EC5AA 100%);
+    padding: 32px 20px 24px;
+    color: #fff;
+    position: relative;
+    overflow: hidden;
+  }
+  #page-home .hero::before {
+    content: '';
+    position: absolute;
+    right: -20px; top: -20px;
+    width: 120px; height: 120px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.12);
+  }
+  #page-home .hero::after {
+    content: '';
+    position: absolute;
+    right: 30px; top: 40px;
+    width: 70px; height: 70px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.08);
+  }
+  .hero-date { font-size: 28px; font-weight: 700; letter-spacing: 1px; }
+  .hero-week { font-size: 14px; opacity: 0.85; margin-top: 4px; }
+  .hero-stats {
+    display: flex;
+    gap: 16px;
+    margin-top: 20px;
+  }
+  .hero-stat {
+    background: rgba(255,255,255,0.22);
+    border-radius: 12px;
+    padding: 10px 14px;
+    flex: 1;
+  }
+  .hero-stat .stat-label { font-size: 11px; opacity: 0.85; }
+  .hero-stat .stat-val { font-size: 20px; font-weight: 700; margin-top: 2px; }
+
+  /* 待办 */
+  .todo-input-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .todo-input-row input { flex: 1; }
+  .todo-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 0;
+    border-bottom: 1px solid #f5f5f5;
+    animation: fadeIn 0.2s ease;
+  }
+  .todo-item:last-child { border-bottom: none; }
+  @keyframes fadeIn { from { opacity:0; transform:translateY(-4px);} to { opacity:1; transform:translateY(0);} }
+  .todo-cb {
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    border: 2px solid var(--mint);
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    transition: all 0.18s;
+  }
+  .todo-cb.done { background: var(--mint); border-color: var(--mint); }
+  .todo-cb.done::after { content: '✓'; color: #fff; font-size: 11px; font-weight: 700; }
+  .todo-text { flex: 1; font-size: 14px; transition: all 0.2s; }
+  .todo-text.done { text-decoration: line-through; color: var(--text-m); }
+  .todo-del {
+    color: #ccc;
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 1;
+    border: none;
+    background: none;
+    padding: 2px 4px;
+    border-radius: 4px;
+    transition: color 0.2s;
+  }
+  .todo-del:hover { color: #f08080; }
+
+  /* 今日花销 */
+  .expense-quick {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .exp-cats {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .cat-btn {
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    border: 1.5px solid #e8e8e8;
+    background: #fafafa;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: inherit;
+  }
+  .cat-btn.selected {
+    background: var(--mint);
+    border-color: var(--mint);
+    color: #fff;
+  }
+  .today-exp-list { margin-top: 10px; }
+  .today-exp-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 0;
+    border-bottom: 1px solid #f5f5f5;
+    font-size: 13px;
+  }
+  .today-exp-item:last-child { border-bottom: none; }
+  .exp-cat-icon { font-size: 18px; }
+  .exp-amt { font-weight: 600; color: #e07777; margin-left: auto; }
+
+  /* 日记入口 */
+  .diary-entry-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    background: linear-gradient(135deg, var(--pink), #f5c0c0);
+    border-radius: var(--radius);
+    padding: 18px;
+    cursor: pointer;
+    border: none;
+    width: 100%;
+    font-size: 15px;
+    font-weight: 600;
+    color: #c07878;
+    font-family: inherit;
+    box-shadow: var(--shadow);
+    transition: transform 0.18s;
+  }
+  .diary-entry-btn:active { transform: scale(0.97); }
+
+  /* ===== 日记页 ===== */
+  #diary-list, #diary-editor { }
+  .diary-header {
+    background: linear-gradient(135deg, var(--pink) 0%, #edc4c4 100%);
+    padding: 32px 20px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .page-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: #c07878;
+  }
+  .diary-item {
+    background: #fff;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 14px 16px;
+    margin: 10px 16px 0;
+    cursor: pointer;
+    transition: transform 0.15s;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  .diary-item:active { transform: scale(0.98); }
+  .diary-item-mood { font-size: 24px; flex-shrink: 0; }
+  .diary-item-info { flex: 1; min-width: 0; }
+  .diary-item-title { font-size: 15px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .diary-item-preview { font-size: 13px; color: var(--text-m); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .diary-item-date { font-size: 11px; color: var(--text-m); margin-top: 6px; }
+  .diary-item-cover { width: 54px; height: 54px; border-radius: 10px; object-fit: cover; flex-shrink: 0; }
+
+  /* 日记编辑 */
+  .editor-header {
+    background: var(--pink);
+    padding: 32px 20px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .back-btn {
+    border: none;
+    background: rgba(255,255,255,0.6);
+    border-radius: 50%;
+    width: 34px; height: 34px;
+    font-size: 18px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #c07878;
+    transition: background 0.15s;
+  }
+  .back-btn:hover { background: rgba(255,255,255,0.9); }
+  .editor-title-h { font-size: 18px; font-weight: 700; color: #c07878; }
+  .mood-row {
+    display: flex;
+    gap: 12px;
+    margin: 12px 0;
+    justify-content: center;
+  }
+  .mood-opt {
+    font-size: 28px;
+    cursor: pointer;
+    border-radius: 50%;
+    padding: 6px;
+    border: 2px solid transparent;
+    transition: all 0.15s;
+    line-height: 1;
+  }
+  .mood-opt.selected { border-color: var(--pink); background: rgba(242,217,217,0.4); transform: scale(1.15); }
+  .img-upload-area {
+    border: 2px dashed #e0e0e0;
+    border-radius: var(--r-sm);
+    padding: 16px;
+    text-align: center;
+    color: var(--text-m);
+    font-size: 13px;
+    cursor: pointer;
+    transition: border-color 0.2s;
+  }
+  .img-upload-area:hover { border-color: var(--pink); }
+  .thumb-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .thumb-grid img {
+    width: 70px; height: 70px;
+    border-radius: 8px;
+    object-fit: cover;
+    border: 2px solid #f0f0f0;
+  }
+
+  /* ===== 花销页 ===== */
+  .exp-header {
+    background: linear-gradient(135deg, #b5d0e8 0%, #8ab4d4 100%);
+    padding: 32px 20px 20px;
+    color: #fff;
+  }
+  .exp-header .page-title { color: #fff; }
+  .exp-total-label { font-size: 13px; opacity: 0.85; margin-top: 12px; }
+  .exp-total-val { font-size: 32px; font-weight: 700; margin-top: 4px; }
+  .exp-total-unit { font-size: 16px; font-weight: 400; margin-right: 4px; }
+  .exp-list-item {
+    background: #fff;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 12px 16px;
+    margin: 10px 16px 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    transition: transform 0.15s;
+    animation: fadeIn 0.2s;
+  }
+  .exp-list-item:active { transform: scale(0.97); }
+  .exp-icon-bg {
+    width: 42px; height: 42px;
+    border-radius: 12px;
+    background: var(--light);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+    flex-shrink: 0;
+  }
+  .exp-info { flex: 1; }
+  .exp-info-name { font-size: 14px; font-weight: 600; }
+  .exp-info-date { font-size: 12px; color: var(--text-m); margin-top: 2px; }
+  .exp-amount { font-size: 16px; font-weight: 700; color: #e07777; }
+  .exp-note { font-size: 12px; color: var(--text-m); margin-top: 1px; max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* 悬浮按钮 */
+  .fab {
+    position: fixed;
+    bottom: 90px;
+    right: calc(50% - 240px + 16px);
+    background: var(--mint);
+    color: #fff;
+    border: none;
+    border-radius: 28px;
+    padding: 13px 20px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 4px 16px rgba(142,197,170,0.5);
+    transition: all 0.2s;
+    font-family: inherit;
+    z-index: 50;
+    display: none;
+  }
+  .fab.show { display: flex; align-items: center; gap: 6px; }
+  .fab:active { transform: scale(0.95); }
+
+  /* 花销弹窗 */
+  .exp-modal-form { display: flex; flex-direction: column; gap: 12px; }
+  .form-label { font-size: 13px; color: var(--text-m); margin-bottom: 4px; }
+
+  /* ===== 工坊页 ===== */
+  .workshop-header {
+    background: linear-gradient(135deg, #d4b5e8 0%, #b08fcc 100%);
+    padding: 32px 20px 20px;
+    color: #fff;
+  }
+  .workshop-header .page-title { color: #fff; }
+  .workshop-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    padding: 12px 16px;
+  }
+  .canvas-wrap {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 12px;
+  }
+  #diy-canvas {
+    border: 2px solid #e0e0e0;
+    border-radius: 12px;
+    display: block;
+    background: #fff;
+    touch-action: none;
+  }
+  .tool-section {
+    background: #fff;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 14px;
+    margin-bottom: 10px;
+  }
+  .tool-section-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-m);
+    margin-bottom: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .color-swatches {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .swatch {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: transform 0.15s, border-color 0.15s;
+  }
+  .swatch:hover, .swatch.active { transform: scale(1.15); border-color: #aaa; }
+  .sticker-grid {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .sticker-btn {
+    font-size: 26px;
+    cursor: pointer;
+    border: none;
+    background: none;
+    padding: 4px;
+    border-radius: 8px;
+    transition: transform 0.15s, background 0.15s;
+    line-height: 1;
+  }
+  .sticker-btn:hover { background: var(--light); transform: scale(1.2); }
+  .text-tool-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .text-tool-row input[type="text"] { flex: 1; min-width: 80px; }
+  .font-size-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+  .font-size-row label { font-size: 12px; color: var(--text-m); white-space: nowrap; }
+  .font-size-row input[type="range"] { flex: 1; accent-color: var(--mint-d); }
+  .font-size-row span { font-size: 12px; color: var(--text-m); width: 24px; text-align: right; }
+  .workshop-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 4px;
+  }
+  .workshop-actions .btn { flex: 1; text-align: center; }
+
+  /* ====== PWA: 启动页（Splash Screen） ====== */
+  #splash-screen {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: #FDF6E3;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    transition: opacity 0.5s ease, visibility 0.5s ease;
+  }
+  #splash-screen.hidden {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
+  #splash-logo {
+    width: 88px;
+    height: 88px;
+    border-radius: 22px;
+    background: #B5D8C4;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 48px;
+    font-weight: 700;
+    color: #fff;
+    box-shadow: 0 8px 32px rgba(142,197,170,0.4);
+    animation: splashPulse 1.6s ease-in-out infinite;
+  }
+  @keyframes splashPulse {
+    0%, 100% { transform: scale(1); }
+    50%      { transform: scale(1.06); }
+  }
+  #splash-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: #8EC5AA;
+    letter-spacing: 2px;
+  }
+  #splash-subtitle {
+    font-size: 13px;
+    color: #b0b0b0;
+    letter-spacing: 1px;
+  }
+
+  /* ====== PWA: 安装引导横幅 ====== */
+  #install-banner {
+    display: none;
+    position: fixed;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 90%;
+    max-width: 420px;
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+    padding: 14px 16px;
+    z-index: 300;
+    animation: slideUp 0.35s ease;
+    align-items: center;
+    gap: 12px;
+    border: 1px solid rgba(181,216,196,0.4);
+  }
+  #install-banner.show { display: flex; }
+  .banner-icon {
+    flex-shrink: 0;
+    width: 44px;
+    height: 44px;
+    background: #B5D8C4;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    font-weight: 700;
+    color: #fff;
+  }
+  .banner-info { flex: 1; }
+  .banner-info-title { font-weight: 600; font-size: 14px; }
+  .banner-info-desc { font-size: 12px; color: #888; margin-top: 1px; }
+  .banner-close {
+    border: none;
+    background: none;
+    font-size: 18px;
+    color: #ccc;
+    cursor: pointer;
+    padding: 4px;
+  }
+  .banner-close:active { transform: scale(0.9); }
+
+  /* ====== PWA: 移动端触摸优化 ====== */
+  .page, #diary-list, #exp-list-inner, .modal-box {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+  input[type="text"], input[type="number"], textarea, select {
+    font-size: 16px;
+  }
+  @media (min-width: 481px) {
+    input[type="text"], input[type="number"], textarea, select {
+      font-size: 14px;
+    }
+  }
+  .btn, .nav-item, .cat-btn, .swatch, .sticker-btn, .todo-cb, .todo-del,
+  .diary-item, .exp-list-item, .diary-entry-btn, .fab, .back-btn, .mood-opt,
+  .banner-close {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    user-select: none;
+  }
+  #nav {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  #page-home .hero {
+    padding-top: calc(32px + env(safe-area-inset-top, 0px));
+  }
+  .diary-header, .exp-header, .workshop-header, .editor-header {
+    padding-top: calc(32px + env(safe-area-inset-top, 0px));
+  }
+  .fab {
+    bottom: calc(90px + env(safe-area-inset-bottom, 0px));
+  }
+  .modal-box {
+    padding-bottom: calc(36px + env(safe-area-inset-bottom, 0px));
+  }
+  .page {
+    padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+  }
+  #install-banner {
+    bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+  }
+</style>
+</head>
+<body>
+
+<!-- ====== PWA 启动页 ====== -->
+<div id="splash-screen">
+  <div id="splash-logo">日</div>
+  <div id="splash-title">DailyPocket</div>
+  <div id="splash-subtitle">日迹 · 记录每一天</div>
+</div>
+
+<!-- ====== PWA 安装引导横幅 ====== -->
+<div id="install-banner">
+  <div class="banner-icon">日</div>
+  <div class="banner-info">
+    <div class="banner-info-title">添加到主屏幕</div>
+    <div class="banner-info-desc">像 App 一样快速打开「日迹」</div>
+  </div>
+  <button class="banner-close" onclick="closeInstallBanner()">✕</button>
+</div>
+
+<div id="app">
+
+  <!-- ====== 主页 ====== -->
+  <div id="page-home" class="page active">
+    <div class="hero">
+      <div class="hero-date" id="hero-date">2026年6月21日</div>
+      <div class="hero-week" id="hero-week">星期六 · 今天</div>
+      <div class="hero-stats">
+        <div class="hero-stat">
+          <div class="stat-label">📋 未完成待办</div>
+          <div class="stat-val" id="home-todo-count">0</div>
+        </div>
+        <div class="hero-stat">
+          <div class="stat-label">💰 今日花销</div>
+          <div class="stat-val">¥<span id="home-today-exp">0.00</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-title">
+        📋 今日待办
+        <span class="count" id="todo-remaining-badge">0 未完成</span>
+      </div>
+      <div class="todo-input-row">
+        <input type="text" id="todo-input" placeholder="添加一件事…" maxlength="80">
+        <button class="btn btn-primary" onclick="addTodo()">＋</button>
+      </div>
+      <div id="todo-list"></div>
+    </div>
+
+    <div style="display:flex; gap:12px; margin:0 16px 12px;">
+      <div style="flex:1; background:#fff; border-radius:var(--radius); box-shadow:var(--shadow); padding:16px;">
+        <div class="section-title" style="margin-bottom:10px;">💰 快速记账</div>
+        <div class="expense-quick">
+          <input type="number" id="quick-amount" placeholder="金额 ¥" min="0" step="0.01">
+          <div class="exp-cats" id="quick-cat-btns"></div>
+          <input type="text" id="quick-note" placeholder="备注（选填）" maxlength="30">
+          <button class="btn btn-primary" onclick="quickAddExpense()">记一笔</button>
+        </div>
+        <div class="today-exp-list" id="today-exp-list"></div>
+      </div>
+      <div style="width:110px; display:flex; align-items:stretch;">
+        <button class="diary-entry-btn" onclick="showPage('diary')">
+          <span style="font-size:28px;">📖</span>
+          <span>写<br>日<br>记</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== 日记列表页 ====== -->
+  <div id="page-diary" class="page">
+    <div id="diary-list">
+      <div class="diary-header">
+        <span class="page-title">📖 我的日记</span>
+        <button class="btn btn-primary" onclick="showDiaryEditor(null)" style="padding:8px 16px; font-size:13px;">＋ 写日记</button>
+      </div>
+      <div id="diary-list-inner" style="padding-bottom:8px;"></div>
+    </div>
+
+    <div id="diary-editor" style="display:none;">
+      <div class="editor-header">
+        <button class="back-btn" onclick="closeDiaryEditor()">‹</button>
+        <span class="editor-title-h" id="editor-title-h">✍️ 写日记</span>
+      </div>
+      <div style="padding:0 16px 20px;">
+        <div class="card" style="margin:12px 0;">
+          <div style="font-size:12px; color:var(--text-m); margin-bottom:4px;">日期</div>
+          <div id="editor-date-display" style="font-size:15px; font-weight:600;"></div>
+        </div>
+        <div class="card" style="margin:0 0 10px;">
+          <div class="form-label">标题</div>
+          <input type="text" id="ed-title" placeholder="给今天起个标题…" maxlength="50">
+          <div class="form-label" style="margin-top:12px;">心情</div>
+          <div class="mood-row" id="mood-row">
+            <span class="mood-opt" data-mood="😊">😊</span>
+            <span class="mood-opt" data-mood="😐">😐</span>
+            <span class="mood-opt" data-mood="😢">😢</span>
+            <span class="mood-opt" data-mood="😡">😡</span>
+            <span class="mood-opt" data-mood="❤️">❤️</span>
+          </div>
+          <div class="form-label" style="margin-top:4px;">正文</div>
+          <textarea id="ed-content" placeholder="今天发生了什么…" rows="6" style="resize:none;"></textarea>
+          <div class="form-label" style="margin-top:12px;">图片</div>
+          <div class="img-upload-area" onclick="document.getElementById('ed-img-input').click()">
+            📷 点击上传图片
+          </div>
+          <input type="file" id="ed-img-input" accept="image/*" multiple style="display:none" onchange="handleDiaryImgs(event)">
+          <div class="thumb-grid" id="ed-thumbs"></div>
+        </div>
+        <button class="btn btn-primary" onclick="saveDiary()" style="width:100%; padding:14px; font-size:15px;">💾 保存日记</button>
+        <button id="del-diary-btn" class="btn btn-danger" onclick="deleteDiary()" style="width:100%; padding:12px; font-size:14px; margin-top:8px; display:none;">🗑 删除</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== 花销列表页 ====== -->
+  <div id="page-expense" class="page">
+    <div class="exp-header">
+      <div class="page-title">💰 花销记录</div>
+      <div class="exp-total-label">本月总支出</div>
+      <div class="exp-total-val"><span class="exp-total-unit">¥</span><span id="month-total">0.00</span></div>
+    </div>
+    <div id="exp-list-inner" style="padding-bottom:8px;"></div>
+    <div style="height:20px;"></div>
+  </div>
+
+  <button class="fab" id="exp-fab" onclick="showExpModal()">＋ 记录花销</button>
+
+  <div class="modal-overlay" id="exp-modal">
+    <div class="modal-box">
+      <div class="modal-title">💰 记录花销</div>
+      <div class="exp-modal-form">
+        <div>
+          <div class="form-label">金额</div>
+          <input type="number" id="modal-amount" placeholder="¥ 0.00" min="0" step="0.01">
+        </div>
+        <div>
+          <div class="form-label">分类</div>
+          <div class="exp-cats" id="modal-cat-btns"></div>
+        </div>
+        <div>
+          <div class="form-label">备注（选填）</div>
+          <input type="text" id="modal-note" placeholder="比如：午餐、打车…" maxlength="30">
+        </div>
+        <div style="display:flex; gap:10px; margin-top:4px;">
+          <button class="btn btn-outline" onclick="closeExpModal()" style="flex:1;">取消</button>
+          <button class="btn btn-primary" onclick="saveExpFromModal()" style="flex:1;">确定</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== 工坊页 ====== -->
+  <div id="page-workshop" class="page">
+    <div class="workshop-header">
+      <div class="page-title">🎨 DIY 图片工坊</div>
+      <div style="font-size:13px; opacity:0.85; margin-top:6px;">自由创作，留住美好瞬间</div>
+    </div>
+    <div class="workshop-layout">
+      <div class="canvas-wrap">
+        <canvas id="diy-canvas" width="300" height="300"></canvas>
+      </div>
+
+      <div class="tool-section">
+        <div class="tool-section-title">🎨 背景颜色</div>
+        <div class="color-swatches" id="bg-swatches"></div>
+      </div>
+
+      <div class="tool-section">
+        <div class="tool-section-title">✍️ 添加文字</div>
+        <div class="text-tool-row">
+          <input type="text" id="text-input" placeholder="输入文字…" maxlength="30">
+          <input type="color" id="text-color" value="#4a4a4a" title="字体颜色" style="width:36px;height:36px;border:none;border-radius:8px;cursor:pointer;padding:2px;">
+        </div>
+        <div class="font-size-row">
+          <label>字号</label>
+          <input type="range" id="font-size-slider" min="12" max="60" value="24" oninput="document.getElementById('font-size-val').textContent=this.value">
+          <span id="font-size-val">24</span>
+        </div>
+        <button class="btn btn-primary" onclick="addTextToCanvas()" style="margin-top:10px; width:100%;">添加文字</button>
+      </div>
+
+      <div class="tool-section">
+        <div class="tool-section-title">🌿 添加贴纸</div>
+        <div class="sticker-grid" id="sticker-grid"></div>
+      </div>
+
+      <div class="tool-section">
+        <div class="tool-section-title">🖼 上传图片</div>
+        <div class="img-upload-area" onclick="document.getElementById('ws-img-input').click()">
+          📷 点击选择图片
+        </div>
+        <input type="file" id="ws-img-input" accept="image/*" style="display:none" onchange="addImgToCanvas(event)">
+      </div>
+
+      <div class="tool-section">
+        <div class="tool-section-title">🛠 操作</div>
+        <button class="btn btn-danger" onclick="clearCanvas()" style="width:100%; margin-bottom:8px;">🗑 清空画布</button>
+        <div class="workshop-actions">
+          <button class="btn btn-primary" onclick="saveCanvasAsPng()">⬇️ 下载 PNG</button>
+          <button class="btn btn-outline" onclick="setAsTodayCover()">📌 设为封面</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== 底部导航 ====== -->
+  <nav id="nav">
+    <button class="nav-item active" data-page="home" onclick="showPage('home',this)">
+      <span class="nav-icon">🏠</span>
+      <span class="nav-label">主页</span>
+    </button>
+    <button class="nav-item" data-page="diary" onclick="showPage('diary',this)">
+      <span class="nav-icon">📖</span>
+      <span class="nav-label">日记</span>
+    </button>
+    <button class="nav-item" data-page="expense" onclick="showPage('expense',this)">
+      <span class="nav-icon">💰</span>
+      <span class="nav-label">花销</span>
+    </button>
+    <button class="nav-item" data-page="workshop" onclick="showPage('workshop',this)">
+      <span class="nav-icon">🎨</span>
+      <span class="nav-label">工坊</span>
+    </button>
+  </nav>
+</div>
+
+<script>
+/* ============================================================
+   DailyPocket · 日迹  —  完整 JS 逻辑
+   ============================================================ */
+
+// ---------- 数据层 ----------
+const DB = {
+  get todos()    { return JSON.parse(localStorage.getItem('dp_todos')    || '[]'); },
+  get expenses() { return JSON.parse(localStorage.getItem('dp_expenses') || '[]'); },
+  get diaries()  { return JSON.parse(localStorage.getItem('dp_diaries')  || '[]'); },
+  get settings() { return JSON.parse(localStorage.getItem('dp_settings') || '{}'); },
+  set todos(v)    { localStorage.setItem('dp_todos',    JSON.stringify(v)); },
+  set expenses(v) { localStorage.setItem('dp_expenses', JSON.stringify(v)); },
+  set diaries(v)  { localStorage.setItem('dp_diaries',  JSON.stringify(v)); },
+  set settings(v) { localStorage.setItem('dp_settings', JSON.stringify(v)); },
+};
+
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+
+const todayStr = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+};
+
+const fmtDate = s => {
+  if (!s) return '';
+  const [y,m,d] = s.split('-');
+  return `${y}年${m}月${d}日`;
+};
+
+const CATEGORIES = [
+  { key:'food',    label:'餐饮', icon:'🍜' },
+  { key:'travel',  label:'交通', icon:'🚌' },
+  { key:'shop',    label:'购物', icon:'🛍' },
+  { key:'fun',     label:'娱乐', icon:'🎮' },
+  { key:'other',   label:'其他', icon:'💡' },
+];
+const CAT_MAP = Object.fromEntries(CATEGORIES.map(c=>[c.key,c]));
+
+// ---------- 导航 ----------
+let currentPage = 'home';
+
+function showPage(name, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+  const target = btn || document.querySelector(`.nav-item[data-page="${name}"]`);
+  if (target) target.classList.add('active');
+  currentPage = name;
+
+  document.getElementById('exp-fab').classList.toggle('show', name === 'expense');
+
+  if (name === 'home')     renderHome();
+  if (name === 'diary')    renderDiaryList();
+  if (name === 'expense')  renderExpenseList();
+  if (name === 'workshop') initWorkshop();
+}
+
+// ---------- 主页 ----------
+const WEEKS = ['日','一','二','三','四','五','六'];
+
+function renderHome() {
+  const now = new Date();
+  const y = now.getFullYear(), m = now.getMonth()+1, d = now.getDate();
+  document.getElementById('hero-date').textContent = `${y}年${m}月${d}日`;
+  document.getElementById('hero-week').textContent = `星期${WEEKS[now.getDay()]} · 今天`;
+
+  renderTodos();
+
+  const today = todayStr();
+  const todayExps = DB.expenses.filter(e => e.date === today);
+  const todayTotal = todayExps.reduce((s,e)=>s+Number(e.amount),0);
+  document.getElementById('home-today-exp').textContent = todayTotal.toFixed(2);
+
+  const list = document.getElementById('today-exp-list');
+  if (todayExps.length === 0) {
+    list.innerHTML = '<div class="empty-tip" style="padding:10px 0; font-size:12px;">还没有花销记录</div>';
+  } else {
+    list.innerHTML = todayExps.slice(-5).reverse().map(e => {
+      const cat = CAT_MAP[e.category] || CAT_MAP['other'];
+      return `<div class="today-exp-item">
+        <span class="exp-cat-icon">${cat.icon}</span>
+        <span style="flex:1; font-size:13px;">${cat.label}${e.note ? ' · '+e.note : ''}</span>
+        <span class="exp-amt">¥${Number(e.amount).toFixed(2)}</span>
+      </div>`;
+    }).join('');
+  }
+
+  initCatBtns('quick-cat-btns', 'food');
+}
+
+function renderTodos() {
+  const today = todayStr();
+  const todos = DB.todos.filter(t => t.date === today);
+  const remaining = todos.filter(t=>!t.done).length;
+
+  document.getElementById('todo-remaining-badge').textContent = `${remaining} 未完成`;
+  document.getElementById('home-todo-count').textContent = remaining;
+
+  const list = document.getElementById('todo-list');
+  if (todos.length === 0) {
+    list.innerHTML = '<div class="empty-tip" style="padding:12px 0;"><span class="e-emoji">✨</span>今天还没有待办，尽情享受吧！</div>';
+    return;
+  }
+  list.innerHTML = todos.map(t => `
+    <div class="todo-item" id="todo-${t.id}">
+      <div class="todo-cb ${t.done?'done':''}" onclick="toggleTodo('${t.id}')"></div>
+      <span class="todo-text ${t.done?'done':''}">${escHtml(t.text)}</span>
+      <button class="todo-del" onclick="deleteTodo('${t.id}')">×</button>
+    </div>
+  `).join('');
+}
+
+function addTodo() {
+  const inp = document.getElementById('todo-input');
+  const text = inp.value.trim();
+  if (!text) { inp.focus(); return; }
+  const todos = DB.todos;
+  todos.push({ id: uid(), text, done: false, date: todayStr() });
+  DB.todos = todos;
+  inp.value = '';
+  renderTodos();
+  updateHomeStats();
+}
+
+function toggleTodo(id) {
+  const todos = DB.todos;
+  const t = todos.find(x=>x.id===id);
+  if (t) t.done = !t.done;
+  DB.todos = todos;
+  renderTodos();
+  updateHomeStats();
+}
+
+function deleteTodo(id) {
+  DB.todos = DB.todos.filter(t=>t.id!==id);
+  renderTodos();
+  updateHomeStats();
+}
+
+function updateHomeStats() {
+  const today = todayStr();
+  const remaining = DB.todos.filter(t=>t.date===today&&!t.done).length;
+  document.getElementById('home-todo-count').textContent = remaining;
+  document.getElementById('todo-remaining-badge').textContent = `${remaining} 未完成`;
+}
+
+document.getElementById('todo-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') addTodo();
+});
+
+// ---------- 分类按钮 ----------
+let quickCatSelected = 'food';
+let modalCatSelected = 'food';
+
+function initCatBtns(containerId, defaultCat) {
+  const cont = document.getElementById(containerId);
+  if (!cont) return;
+  cont.innerHTML = CATEGORIES.map(c => `
+    <button class="cat-btn ${c.key === defaultCat ? 'selected' : ''}"
+      data-key="${c.key}"
+      onclick="selectCat('${containerId}','${c.key}')">
+      ${c.icon} ${c.label}
+    </button>
+  `).join('');
+}
+
+function selectCat(containerId, key) {
+  const cont = document.getElementById(containerId);
+  cont.querySelectorAll('.cat-btn').forEach(b => {
+    b.classList.toggle('selected', b.dataset.key === key);
+  });
+  if (containerId === 'quick-cat-btns') quickCatSelected = key;
+  else modalCatSelected = key;
+}
+
+function getSelectedCat(containerId) {
+  const cont = document.getElementById(containerId);
+  if (!cont) return 'other';
+  const sel = cont.querySelector('.cat-btn.selected');
+  return sel ? sel.dataset.key : 'other';
+}
+
+// ---------- 快速记账 ----------
+function quickAddExpense() {
+  const amt = parseFloat(document.getElementById('quick-amount').value);
+  if (!amt || amt <= 0) { alert('请输入有效金额'); return; }
+  const note = document.getElementById('quick-note').value.trim();
+  const category = getSelectedCat('quick-cat-btns');
+  const exps = DB.expenses;
+  exps.push({ id: uid(), amount: amt, category, note, date: todayStr() });
+  DB.expenses = exps;
+  document.getElementById('quick-amount').value = '';
+  document.getElementById('quick-note').value = '';
+  renderHome();
+}
+
+// ---------- 日记 ----------
+let editingDiaryId = null;
+let diaryImagesBase64 = [];
+let selectedMood = '😊';
+
+function renderDiaryList() {
+  document.getElementById('diary-list').style.display = 'block';
+  document.getElementById('diary-editor').style.display = 'none';
+
+  const diaries = DB.diaries.slice().sort((a,b) => b.date.localeCompare(a.date));
+  const inner = document.getElementById('diary-list-inner');
+  if (diaries.length === 0) {
+    inner.innerHTML = '<div class="empty-tip" style="margin-top:20px;"><span class="e-emoji">📖</span>还没有日记，快去记录第一篇吧！</div>';
+    return;
+  }
+  inner.innerHTML = diaries.map(d => `
+    <div class="diary-item" onclick="showDiaryEditor('${d.id}')">
+      <span class="diary-item-mood">${d.mood || '😊'}</span>
+      <div class="diary-item-info">
+        <div class="diary-item-title">${escHtml(d.title || '无标题')}</div>
+        <div class="diary-item-preview">${escHtml(d.content || '（空）').slice(0,40)}</div>
+        <div class="diary-item-date">${fmtDate(d.date)}</div>
+      </div>
+      ${d.images && d.images[0] ? `<img class="diary-item-cover" src="${d.images[0]}" alt="">` : ''}
+    </div>
+  `).join('');
+}
+
+function showDiaryEditor(id) {
+  document.getElementById('diary-list').style.display = 'none';
+  document.getElementById('diary-editor').style.display = 'block';
+  editingDiaryId = id;
+  diaryImagesBase64 = [];
+  selectedMood = '😊';
+
+  const today = todayStr();
+  document.getElementById('editor-date-display').textContent = fmtDate(today);
+
+  if (id) {
+    const d = DB.diaries.find(x=>x.id===id);
+    if (d) {
+      document.getElementById('ed-title').value = d.title || '';
+      document.getElementById('ed-content').value = d.content || '';
+      selectedMood = d.mood || '😊';
+      diaryImagesBase64 = d.images ? [...d.images] : [];
+      document.getElementById('editor-title-h').textContent = '✏️ 编辑日记';
+      document.getElementById('del-diary-btn').style.display = 'block';
+    }
+  } else {
+    document.getElementById('ed-title').value = '';
+    document.getElementById('ed-content').value = '';
+    selectedMood = '😊';
+    document.getElementById('editor-title-h').textContent = '✍️ 写日记';
+    document.getElementById('del-diary-btn').style.display = 'none';
+  }
+  renderMoodSelector();
+  renderDiaryThumbs();
+}
+
+function closeDiaryEditor() {
+  document.getElementById('diary-list').style.display = 'block';
+  document.getElementById('diary-editor').style.display = 'none';
+  renderDiaryList();
+}
+
+function renderMoodSelector() {
+  document.querySelectorAll('.mood-opt').forEach(el => {
+    el.classList.toggle('selected', el.dataset.mood === selectedMood);
+    el.onclick = () => {
+      selectedMood = el.dataset.mood;
+      renderMoodSelector();
+    };
+  });
+}
+
+function handleDiaryImgs(ev) {
+  const files = Array.from(ev.target.files);
+  const promises = files.map(f => new Promise(res => {
+    const reader = new FileReader();
+    reader.onload = e => res(e.target.result);
+    reader.readAsDataURL(f);
+  }));
+  Promise.all(promises).then(results => {
+    diaryImagesBase64 = [...diaryImagesBase64, ...results].slice(0, 9);
+    renderDiaryThumbs();
+  });
+}
+
+function renderDiaryThumbs() {
+  const grid = document.getElementById('ed-thumbs');
+  grid.innerHTML = diaryImagesBase64.map(src => `<img src="${src}" alt="">`).join('');
+}
+
+function saveDiary() {
+  const title   = document.getElementById('ed-title').value.trim();
+  const content = document.getElementById('ed-content').value.trim();
+  if (!title && !content) { alert('请填写标题或正文'); return; }
+
+  const diaries = DB.diaries;
+  const today = todayStr();
+  if (editingDiaryId) {
+    const idx = diaries.findIndex(d=>d.id===editingDiaryId);
+    if (idx > -1) {
+      diaries[idx] = { ...diaries[idx], title, content, mood: selectedMood, images: diaryImagesBase64 };
+    }
+  } else {
+    diaries.push({ id: uid(), date: today, title, content, mood: selectedMood, images: diaryImagesBase64, cover: '' });
+  }
+  DB.diaries = diaries;
+  closeDiaryEditor();
+}
+
+function deleteDiary() {
+  if (!confirm('确定删除这篇日记？')) return;
+  DB.diaries = DB.diaries.filter(d=>d.id!==editingDiaryId);
+  closeDiaryEditor();
+}
+
+// ---------- 花销 ----------
+function renderExpenseList() {
+  const exps = DB.expenses.slice().sort((a,b) => b.date.localeCompare(a.date));
+
+  const now = new Date();
+  const ym = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  const monthTotal = exps.filter(e=>e.date.startsWith(ym)).reduce((s,e)=>s+Number(e.amount),0);
+  document.getElementById('month-total').textContent = monthTotal.toFixed(2);
+
+  const inner = document.getElementById('exp-list-inner');
+  if (exps.length === 0) {
+    inner.innerHTML = '<div class="empty-tip" style="margin-top:24px;"><span class="e-emoji">💰</span>还没有花销记录，快去记一笔吧！</div>';
+    return;
+  }
+  inner.innerHTML = exps.map(e => {
+    const cat = CAT_MAP[e.category] || CAT_MAP['other'];
+    return `<div class="exp-list-item" onclick="deleteExpense('${e.id}')">
+      <div class="exp-icon-bg">${cat.icon}</div>
+      <div class="exp-info">
+        <div class="exp-info-name">${cat.label}</div>
+        ${e.note ? `<div class="exp-note">${escHtml(e.note)}</div>` : ''}
+        <div class="exp-info-date">${fmtDate(e.date)}</div>
+      </div>
+      <div>
+        <div class="exp-amount">¥${Number(e.amount).toFixed(2)}</div>
+        <div style="font-size:11px; color:#ccc; text-align:right; margin-top:2px;">点击删除</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function deleteExpense(id) {
+  if (!confirm('删除这条花销记录？')) return;
+  DB.expenses = DB.expenses.filter(e=>e.id!==id);
+  renderExpenseList();
+}
+
+function showExpModal() {
+  initCatBtns('modal-cat-btns', 'food');
+  document.getElementById('modal-amount').value = '';
+  document.getElementById('modal-note').value = '';
+  document.getElementById('exp-modal').classList.add('show');
+}
+
+function closeExpModal() {
+  document.getElementById('exp-modal').classList.remove('show');
+}
+
+function saveExpFromModal() {
+  const amt = parseFloat(document.getElementById('modal-amount').value);
+  if (!amt || amt <= 0) { alert('请输入有效金额'); return; }
+  const note = document.getElementById('modal-note').value.trim();
+  const category = getSelectedCat('modal-cat-btns');
+  const exps = DB.expenses;
+  exps.push({ id: uid(), amount: amt, category, note, date: todayStr() });
+  DB.expenses = exps;
+  closeExpModal();
+  renderExpenseList();
+}
+
+document.getElementById('exp-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeExpModal();
+});
+
+// ---------- 工坊 ----------
+const BG_COLORS = ['#FDF6E3','#F2D9D9','#B5D8C4','#D4B5E8','#B5C8E8','#F5E8B5'];
+const STICKERS  = ['🌿','☀️','🌸','🐱','⭐','🌈'];
+
+let canvasInited = false;
+let canvasState = {
+  bg: '#ffffff',
+  items: []
+};
+
+function initWorkshop() {
+  if (canvasInited) { redrawCanvas(); return; }
+  canvasInited = true;
+
+  const sw = document.getElementById('bg-swatches');
+  sw.innerHTML = BG_COLORS.map(c => `
+    <div class="swatch" style="background:${c};" onclick="setBgColor('${c}',this)" title="${c}"></div>
+  `).join('');
+
+  const sg = document.getElementById('sticker-grid');
+  sg.innerHTML = STICKERS.map(s => `
+    <button class="sticker-btn" onclick="addSticker('${s}')">${s}</button>
+  `).join('');
+
+  redrawCanvas();
+}
+
+function getCanvas() { return document.getElementById('diy-canvas'); }
+function getCtx()    { return getCanvas().getContext('2d'); }
+
+function redrawCanvas() {
+  const canvas = getCanvas();
+  const ctx = getCtx();
+  ctx.clearRect(0,0,300,300);
+
+  ctx.fillStyle = canvasState.bg;
+  ctx.fillRect(0,0,300,300);
+
+  canvasState.items.forEach(item => {
+    if (item.type === 'text') {
+      ctx.save();
+      ctx.font = `${item.fontSize || 24}px -apple-system, sans-serif`;
+      ctx.fillStyle = item.color || '#4a4a4a';
+      ctx.fillText(item.data, item.x, item.y);
+      ctx.restore();
+    } else if (item.type === 'sticker') {
+      ctx.save();
+      ctx.font = `${item.fontSize || 40}px serif`;
+      ctx.fillText(item.data, item.x, item.y);
+      ctx.restore();
+    } else if (item.type === 'image') {
+      const img = new Image();
+      img.src = item.data;
+      try { ctx.drawImage(img, item.x, item.y, item.w || 100, item.h || 100); } catch(e){}
+    }
+  });
+}
+
+function setBgColor(color, el) {
+  canvasState.bg = color;
+  document.querySelectorAll('#bg-swatches .swatch').forEach(s=>s.classList.remove('active'));
+  if (el) el.classList.add('active');
+  redrawCanvas();
+}
+
+function addTextToCanvas() {
+  const text = document.getElementById('text-input').value.trim();
+  if (!text) { alert('请输入文字'); return; }
+  const fontSize = parseInt(document.getElementById('font-size-slider').value) || 24;
+  const color    = document.getElementById('text-color').value;
+  canvasState.items.push({ type:'text', data:text, x:30, y: 60 + canvasState.items.length * (fontSize + 10), fontSize, color });
+  redrawCanvas();
+  document.getElementById('text-input').value = '';
+}
+
+function addSticker(emoji) {
+  const offsetY = 60 + canvasState.items.length * 50;
+  canvasState.items.push({ type:'sticker', data:emoji, x:30, y: Math.min(offsetY, 260), fontSize:40 });
+  redrawCanvas();
+}
+
+function addImgToCanvas(ev) {
+  const file = ev.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = new Image();
+    img.onload = () => {
+      const maxSide = 120;
+      let w = img.width, h = img.height;
+      if (w > h) { h = Math.round(h/w*maxSide); w = maxSide; }
+      else       { w = Math.round(w/h*maxSide); h = maxSide; }
+      canvasState.items.push({ type:'image', data: e.target.result, x:10, y:10, w, h });
+      const canvas = getCanvas();
+      const ctx = getCtx();
+      ctx.drawImage(img, 10, 10, w, h);
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+  ev.target.value = '';
+}
+
+function clearCanvas() {
+  if (!confirm('确定清空画布？')) return;
+  canvasState = { bg:'#ffffff', items:[] };
+  document.querySelectorAll('#bg-swatches .swatch').forEach(s=>s.classList.remove('active'));
+  redrawCanvas();
+}
+
+function saveCanvasAsPng() {
+  redrawCanvas();
+  setTimeout(() => {
+    const canvas = getCanvas();
+    const a = document.createElement('a');
+    a.href = canvas.toDataURL('image/png');
+    a.download = `DailyPocket_${todayStr()}.png`;
+    a.click();
+  }, 100);
+}
+
+function setAsTodayCover() {
+  redrawCanvas();
+  setTimeout(() => {
+    const canvas = getCanvas();
+    const dataUrl = canvas.toDataURL('image/png');
+    const settings = DB.settings;
+    settings.currentCover = dataUrl;
+    DB.settings = settings;
+    const today = todayStr();
+    const diaries = DB.diaries;
+    const todayDiary = diaries.find(d=>d.date===today);
+    if (todayDiary) {
+      todayDiary.cover = dataUrl;
+      DB.diaries = diaries;
+    }
+    alert('✅ 已设为今日封面！');
+  }, 100);
+}
+
+// ---------- 工具函数 ----------
+function escHtml(str) {
+  return (str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ---------- PWA: 安装引导 ----------
+function closeInstallBanner() {
+  document.getElementById('install-banner').classList.remove('show');
+}
+
+function showInstallBanner() {
+  const banner = document.getElementById('install-banner');
+  if (banner && !window.matchMedia('(display-mode: standalone)').matches) {
+    setTimeout(() => banner.classList.add('show'), 3000);
+  }
+}
+
+// ---------- PWA: Service Worker 注册 ----------
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js')
+      .then(reg => console.log('[PWA] Service Worker 注册成功，scope:', reg.scope))
+      .catch(err => console.warn('[PWA] Service Worker 注册失败（需使用本地服务器或 HTTPS）:', err));
+  });
+}
+
+// ---------- PWA: 启动页隐藏 ----------
+window.addEventListener('load', () => {
+  const splash = document.getElementById('splash-screen');
+  setTimeout(() => {
+    splash.classList.add('hidden');
+    setTimeout(() => splash.remove(), 600);
+    showInstallBanner();
+  }, 800);
+});
+
+// ---------- PWA: 防止 iOS 双击缩放 ----------
+let lastTouchEnd = 0;
+document.addEventListener('touchend', e => {
+  const now = Date.now();
+  if (now - lastTouchEnd <= 300) e.preventDefault();
+  lastTouchEnd = now;
+}, { passive: false });
+
+// ---------- 初始化 ----------
+(function init() {
+  initCatBtns('quick-cat-btns', 'food');
+  renderHome();
+  ['quick-amount','modal-amount'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        if (id === 'quick-amount') quickAddExpense();
+        else saveExpFromModal();
+      }
+    });
+  });
+})();
+</script>
+</body>
+</html>
