@@ -1,0 +1,57 @@
+{
+  "name": "DailyPocket 日迹",
+  "short_name": "日迹",
+  "description": "日常计划 + 花销记录 + 电子日记本 + 智能管家",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FDF6E3",
+  "theme_color": "#B5D8C4",
+  "icons": [
+    {
+      "src": "icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    },
+    {
+      "src": "icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "写日记",
+      "short_name": "日记",
+      "description": "快速写日记",
+      "url": "./?action=diary"
+    },
+    {
+      "name": "记花销",
+      "short_name": "花销",
+      "description": "快速记一笔花销",
+      "url": "./?action=expense"
+    },
+    {
+      "name": "找管家",
+      "short_name": "管家",
+      "description": "和智能管家对话",
+      "url": "./?action=butler"
+    }
+  ]
+}
